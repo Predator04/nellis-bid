@@ -71,6 +71,8 @@ public class PurchasesActivity extends AppCompatActivity {
             c.setRequestProperty("Authorization", "Bearer " + token);
             String cookie = AuthApi.getCookie(this);
             if (!cookie.isEmpty()) c.setRequestProperty("Cookie", cookie);
+            String sl = AuthApi.getShoppingLocationToken(this);
+            if (!sl.isEmpty()) c.setRequestProperty("x-shopping-location", sl);
             c.setConnectTimeout(20000);
             c.setReadTimeout(30000);
             BufferedReader r = new BufferedReader(new InputStreamReader(

@@ -68,6 +68,23 @@ public class AuthApi {
         return prefs(ctx).getString("cookie", "");
     }
 
+    /** Fetch (and cache) the shopping-location token for the x-shopping-location header. */
+    public static String getShoppingLocationToken(Context ctx) {
+        String cached = prefs(ctx).getString("shoppingLocationToken", "");
+        if (cached != null && !cached.isEmpty()) return cached;
+        try {
+            String resp = get(ctx, "/v1/geo-location/shopping-location", null);
+            JSONObject j = new JSONObject(resp);
+            String tok = j.optString("__shopping-location", "");
+            if (tok != null && !tok.isEmpty()) {
+                prefs(ctx).edit().putString("shoppingLocationToken", tok).apply();
+            }
+            return tok == null ? "" : tok;
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
     public static void logout(Context ctx) {
         prefs(ctx).edit().clear().apply();
     }
@@ -126,7 +143,11 @@ public class AuthApi {
         c.setRequestMethod("POST");
         c.setRequestProperty("Content-Type", "application/json");
         c.setRequestProperty("User-Agent", UA);
-        if (token != null) c.setRequestProperty("Authorization", "Bearer " + token);
+        if (token != null) {
+            c.setRequestProperty("Authorization", "Bearer " + token);
+            String sl = ctx != null ? getShoppingLocationToken(ctx) : "";
+            if (!sl.isEmpty()) c.setRequestProperty("x-shopping-location", sl);
+        }
         String cookie = ctx != null ? prefs(ctx).getString("cookie", "") : "";
         if (token != null && !cookie.isEmpty()) c.setRequestProperty("Cookie", cookie);
         c.setConnectTimeout(20000);
@@ -149,6 +170,27 @@ public class AuthApi {
         r.close();
         c.disconnect();
 
+        if (code >= 400) {
+            throw new Exception(extractMessage(sb.toString(), code));
+        }
+        return sb.toString();
+    }
+
+    private static String get(Context ctx, String path, String token) throws Exception {
+        HttpURLConnection c = (HttpURLConnection) new URL(BASE + path).openConnection();
+        c.setRequestMethod("GET");
+        c.setRequestProperty("User-Agent", UA);
+        if (token != null) c.setRequestProperty("Authorization", "Bearer " + token);
+        c.setConnectTimeout(20000);
+        c.setReadTimeout(30000);
+        int code = c.getResponseCode();
+        BufferedReader r = new BufferedReader(new InputStreamReader(
+                code >= 200 && code < 300 ? c.getInputStream() : c.getErrorStream(), "UTF-8"));
+        StringBuilder sb = new StringBuilder();
+        String line;
+        while ((line = r.readLine()) != null) sb.append(line);
+        r.close();
+        c.disconnect();
         if (code >= 400) {
             throw new Exception(extractMessage(sb.toString(), code));
         }
