@@ -38,6 +38,10 @@
             android:name=".WatchlistActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".PurchasesActivity"
+            android:exported="false" />
+
         <receiver
             android:name=".ReminderReceiver"
             android:exported="false" />

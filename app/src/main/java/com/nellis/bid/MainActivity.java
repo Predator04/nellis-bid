@@ -92,6 +92,10 @@ public class MainActivity extends AppCompatActivity {
         settingsBtn.setOnClickListener(v -> {
             PopupMenu pm = new PopupMenu(this, v);
             pm.getMenu().add("Watchlist");
+            pm.getMenu().add("My Purchases");
+            pm.getMenu().add("My Bids");
+            pm.getMenu().add("Save this search");
+            pm.getMenu().add("Saved searches");
             pm.getMenu().add("Check for updates");
             pm.getMenu().add("Disclaimer");
             pm.getMenu().add(AuthApi.getToken(this) != null ? "Log out" : "Log in");
@@ -99,6 +103,26 @@ public class MainActivity extends AppCompatActivity {
                 String t = item.getTitle().toString();
                 if (t.equals("Watchlist")) {
                     startActivity(new Intent(this, WatchlistActivity.class));
+                    return true;
+                } else if (t.equals("My Purchases")) {
+                    openAccount("/v1/purchases", "My Purchases");
+                    return true;
+                } else if (t.equals("My Bids")) {
+                    openAccount("/v1/auctions", "My Bids");
+                    return true;
+                } else if (t.equals("Save this search")) {
+                    String q = searchInput.getText().toString().trim();
+                    String loc = locationSpinner.getSelectedItemPosition() > 0 ? locationSpinner.getSelectedItem().toString() : "";
+                    String cat = categorySpinner.getSelectedItemPosition() > 0 ? categorySpinner.getSelectedItem().toString() : "";
+                    if (q.isEmpty() && loc.isEmpty() && cat.isEmpty()) {
+                        Toast.makeText(this, "Nothing to save — enter a search or filter", Toast.LENGTH_SHORT).show();
+                    } else {
+                        SavedSearch.add(this, q, loc, cat);
+                        Toast.makeText(this, "Search saved", Toast.LENGTH_SHORT).show();
+                    }
+                    return true;
+                } else if (t.equals("Saved searches")) {
+                    showSavedSearches();
                     return true;
                 } else if (t.equals("Check for updates")) {
                     UpdateChecker.check(this, true);
@@ -147,6 +171,47 @@ public class MainActivity extends AppCompatActivity {
         ArrayAdapter<String> catA = new ArrayAdapter<>(this, R.layout.spinner_item, categories);
         catA.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         categorySpinner.setAdapter(catA);
+    }
+
+    private void openAccount(String endpoint, String label) {
+        Intent i = new Intent(this, PurchasesActivity.class);
+        i.putExtra("endpoint", endpoint);
+        i.putExtra("label", label);
+        startActivity(i);
+    }
+
+    private void showSavedSearches() {
+        List<String[]> saved = SavedSearch.getAll(this);
+        if (saved.isEmpty()) {
+            Toast.makeText(this, "No saved searches yet", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String[] labels = new String[saved.size()];
+        for (int i = 0; i < saved.size(); i++) {
+            String[] s = saved.get(i);
+            String label = s[0];
+            if (!s[1].isEmpty()) label += (label.isEmpty() ? "" : " · ") + s[1];
+            if (!s[2].isEmpty()) label += (label.isEmpty() ? "" : " · ") + s[2];
+            labels[i] = label.isEmpty() ? "(empty)" : label;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Saved searches")
+                .setItems(labels, (d, which) -> {
+                    String[] s = saved.get(which);
+                    searchInput.setText(s[0]);
+                    setSpinnerValue(locationSpinner, s[1]);
+                    setSpinnerValue(categorySpinner, s[2]);
+                    doSearch();
+                })
+                .setPositiveButton("Close", null)
+                .show();
+    }
+
+    private void setSpinnerValue(Spinner spinner, String value) {
+        if (value == null || value.isEmpty()) { spinner.setSelection(0); return; }
+        for (int i = 0; i < spinner.getCount(); i++) {
+            if (spinner.getItemAtPosition(i).toString().equals(value)) { spinner.setSelection(i); return; }
+        }
     }
 
     @Override
