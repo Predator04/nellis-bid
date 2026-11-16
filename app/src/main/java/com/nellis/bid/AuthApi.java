@@ -30,6 +30,7 @@ public class AuthApi {
         body.put("email", email);
         body.put("password", password);
         String resp = post("/v1/auth/sign-in", body.toString(), null);
+        prefs(ctx).edit().putString("lastLoginResponse", resp).apply();
         String token = findToken(resp);
         if (token == null) throw new Exception("Login failed — couldn't find a token. Response: " + resp);
         String refresh = findField(resp, "refreshToken", "refresh_token");
@@ -55,6 +56,10 @@ public class AuthApi {
 
     public static String getEmail(Context ctx) {
         return prefs(ctx).getString("email", null);
+    }
+
+    public static String lastLoginResponse(Context ctx) {
+        return prefs(ctx).getString("lastLoginResponse", "");
     }
 
     public static void logout(Context ctx) {
