@@ -14,6 +14,8 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.NumberFormat;
@@ -70,11 +72,18 @@ public class DetailActivity extends AppCompatActivity {
         Button viewNellis = findViewById(R.id.d_view_nellis);
         Button viewAmazon = findViewById(R.id.d_view_amazon);
         Button similarBtn = findViewById(R.id.d_similar_btn);
+        Button shareBtn = findViewById(R.id.d_share_btn);
 
         render();
         bidBtn.setOnClickListener(v -> onBid());
         viewNellis.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(item.url()))));
         viewAmazon.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(item.amazonUrl()))));
+        shareBtn.setOnClickListener(v -> {
+            Intent send = new Intent(Intent.ACTION_SEND);
+            send.setType("text/plain");
+            send.putExtra(Intent.EXTRA_TEXT, item.title + "\n" + item.url());
+            startActivity(Intent.createChooser(send, "Share item"));
+        });
         similarBtn.setOnClickListener(v -> {
             Intent i = new Intent(this, MainActivity.class);
             i.putExtra("similar_tax2", item.taxonomy2);
@@ -243,8 +252,24 @@ public class DetailActivity extends AppCompatActivity {
                 c.setReadTimeout(15000);
                 c.setRequestProperty("User-Agent", "Mozilla/5.0");
                 c.connect();
-                Bitmap bmp = BitmapFactory.decodeStream(c.getInputStream());
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                InputStream in = c.getInputStream();
+                byte[] buf = new byte[16384];
+                int n;
+                while ((n = in.read(buf)) != -1) baos.write(buf, 0, n);
+                in.close();
                 c.disconnect();
+                byte[] bytes = baos.toByteArray();
+                // Downsample large images to ~1200px max to save memory
+                BitmapFactory.Options opts = new BitmapFactory.Options();
+                opts.inJustDecodeBounds = true;
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.length, opts);
+                int sample = 1;
+                int maxDim = Math.max(opts.outWidth, opts.outHeight);
+                while (maxDim / sample > 1200) sample *= 2;
+                opts.inJustDecodeBounds = false;
+                opts.inSampleSize = sample;
+                Bitmap bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, opts);
                 if (bmp != null) {
                     runOnUiThread(() -> view.setImageBitmap(bmp));
                 }
@@ -276,6 +301,7 @@ public class DetailActivity extends AppCompatActivity {
         if (!it.brand.isEmpty()) sb.append("\nBrand: ").append(it.brand);
         if (!it.color.isEmpty()) sb.append("  ·  Color: ").append(it.color);
         if (!it.dimensions.isEmpty()) sb.append("\nDimensions: ").append(it.dimensions);
+        if (!it.size.isEmpty()) sb.append("\nSize: ").append(it.size);
         if (!it.weight.isEmpty()) sb.append("\nWeight: ").append(it.weight);
         return sb.toString();
     }

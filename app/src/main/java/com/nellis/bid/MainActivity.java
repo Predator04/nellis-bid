@@ -79,6 +79,7 @@ public class MainActivity extends AppCompatActivity {
         qualitySpinner = findViewById(R.id.quality_spinner);
         updateBanner = findViewById(R.id.update_banner);
         setupFilters();
+        restoreFilters();
 
         adapter = new ItemAdapter();
         list.setLayoutManager(new LinearLayoutManager(this));
@@ -112,6 +113,7 @@ public class MainActivity extends AppCompatActivity {
             pm.getMenu().add("My Bids");
             pm.getMenu().add("Save this search");
             pm.getMenu().add("Saved searches");
+            pm.getMenu().add("Reminder lead time");
             pm.getMenu().add("Check for updates");
             pm.getMenu().add("Disclaimer");
             pm.getMenu().add(AuthApi.getToken(this) != null ? "Log out" : "Log in");
@@ -139,6 +141,9 @@ public class MainActivity extends AppCompatActivity {
                     return true;
                 } else if (t.equals("Saved searches")) {
                     showSavedSearches();
+                    return true;
+                } else if (t.equals("Reminder lead time")) {
+                    showReminderDialog();
                     return true;
                 } else if (t.equals("Check for updates")) {
                     UpdateChecker.check(this, true, this::refreshUpdateBanner);
@@ -168,7 +173,13 @@ public class MainActivity extends AppCompatActivity {
 
         // Filter listeners (set AFTER the initial load so setup doesn't re-trigger)
         AdapterView.OnItemSelectedListener filterListener = new AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) { doSearch(); }
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                SharedPreferences sp = getSharedPreferences("filters", MODE_PRIVATE);
+                if (parent == locationSpinner) sp.edit().putInt("loc_pos", position).apply();
+                else if (parent == categorySpinner) sp.edit().putInt("cat_pos", position).apply();
+                else if (parent == qualitySpinner) sp.edit().putInt("quality_pos", position).apply();
+                doSearch();
+            }
             @Override public void onNothingSelected(AdapterView<?> parent) {}
         };
         locationSpinner.setOnItemSelectedListener(filterListener);
@@ -176,6 +187,7 @@ public class MainActivity extends AppCompatActivity {
         qualitySpinner.setOnItemSelectedListener(filterListener);
         sortSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                getSharedPreferences("filters", MODE_PRIVATE).edit().putInt("sort_pos", position).apply();
                 adapter.setItems(applySort(lastResults));
             }
             @Override public void onNothingSelected(AdapterView<?> parent) {}
@@ -191,6 +203,15 @@ public class MainActivity extends AppCompatActivity {
             else UpdateChecker.check(this, true, this::refreshUpdateBanner);
         });
         refreshUpdateBanner();
+    }
+
+    private void restoreFilters() {
+        SharedPreferences sp = getSharedPreferences("filters", MODE_PRIVATE);
+        locationSpinner.setSelection(sp.getInt("loc_pos", 0));
+        categorySpinner.setSelection(sp.getInt("cat_pos", 0));
+        qualitySpinner.setSelection(sp.getInt("quality_pos", 0));
+        sortSpinner.setSelection(sp.getInt("sort_pos", 0));
+        searchInput.setText(sp.getString("query", ""));
     }
 
     private void setupFilters() {
@@ -259,6 +280,27 @@ public class MainActivity extends AppCompatActivity {
         return i.retail > 0 && i.currentBid > 0 ? i.retail - i.currentBid : -1;
     }
 
+    private void showReminderDialog() {
+        SharedPreferences sp = getSharedPreferences("prefs", MODE_PRIVATE);
+        int cur = sp.getInt("reminder_minutes", 10);
+        final String[] opts = {"2 minutes", "5 minutes", "10 minutes", "30 minutes", "1 hour"};
+        final int[] vals = {2, 5, 10, 30, 60};
+        int sel = 0;
+        for (int i = 0; i < vals.length; i++) if (vals[i] == cur) sel = i;
+        new AlertDialog.Builder(this)
+                .setTitle("Notify before auction ends")
+                .setSingleChoiceItems(opts, sel, null)
+                .setPositiveButton("Save", (d, w) -> {
+                    int i = ((AlertDialog) d).getListView().getCheckedItemPosition();
+                    if (i >= 0 && i < vals.length) {
+                        sp.edit().putInt("reminder_minutes", vals[i]).apply();
+                        Toast.makeText(this, "Reminder: " + vals[i] + " min before close", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
     private void openAccount(String endpoint, String label) {
         Intent i = new Intent(this, PurchasesActivity.class);
         i.putExtra("endpoint", endpoint);
@@ -323,6 +365,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void doSearch() {
         String q = searchInput.getText().toString().trim();
+        getSharedPreferences("filters", MODE_PRIVATE).edit().putString("query", q).apply();
         String loc = locationSpinner != null && locationSpinner.getSelectedItemPosition() > 0
                 ? locationSpinner.getSelectedItem().toString() : "";
         String cat = categorySpinner != null && categorySpinner.getSelectedItemPosition() > 0

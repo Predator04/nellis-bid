@@ -259,6 +259,9 @@ public class NellisApi {
             it.color = p.optString("color");
             it.dimensions = p.optString("dimensions");
             it.weight = p.optString("weight");
+            Object sz = p.opt("size");
+            if (sz instanceof String) it.size = (String) sz;
+            else if (sz instanceof Number) it.size = String.valueOf(sz);
 
             Object desc = p.opt("descriptions");
             if (desc instanceof JSONArray) {

@@ -43,6 +43,7 @@ public class Item implements Serializable {
     public String color = "";
     public String dimensions = "";
     public String weight = "";
+    public String size = "";
     public boolean notReturnable = false;
 
     public static final double PREMIUM = 0.15;

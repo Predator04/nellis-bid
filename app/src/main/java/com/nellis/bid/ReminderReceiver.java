@@ -13,10 +13,14 @@ import android.os.Build;
 /** Schedules + fires "auction ending soon" reminders for watched items. */
 public class ReminderReceiver extends BroadcastReceiver {
     private static final String CHANNEL = "bid_reminders";
-    private static final long LEAD_MS = 10 * 60 * 1000L; // 10 minutes before close
+
+    private static long leadMs(Context ctx) {
+        int mins = ctx.getSharedPreferences("prefs", Context.MODE_PRIVATE).getInt("reminder_minutes", 10);
+        return mins * 60 * 1000L;
+    }
 
     public static void schedule(Context ctx, Item item) {
-        long at = item.closeTime - LEAD_MS;
+        long at = item.closeTime - leadMs(ctx);
         if (at <= System.currentTimeMillis()) return;
         Intent i = new Intent(ctx, ReminderReceiver.class);
         i.putExtra("title", item.title);
