@@ -10,6 +10,9 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.PopupMenu;
 import android.widget.ProgressBar;
+import android.widget.Spinner;
+import android.widget.ArrayAdapter;
+import android.widget.AdapterView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,6 +29,7 @@ public class MainActivity extends AppCompatActivity {
     private ProgressBar progress;
     private TextView status;
     private Button loginBtn;
+    private Spinner locationSpinner, categorySpinner;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,6 +54,9 @@ public class MainActivity extends AppCompatActivity {
         progress = findViewById(R.id.progress);
         status = findViewById(R.id.status);
         loginBtn = findViewById(R.id.login_btn);
+        locationSpinner = findViewById(R.id.location_spinner);
+        categorySpinner = findViewById(R.id.category_spinner);
+        setupFilters();
 
         adapter = new ItemAdapter();
         list.setLayoutManager(new LinearLayoutManager(this));
@@ -109,8 +116,27 @@ public class MainActivity extends AppCompatActivity {
         // Default feed on launch (empty query -> Nellis's default discovery)
         doSearch();
 
+        // Filter listeners (set AFTER the initial load so setup doesn't re-trigger)
+        AdapterView.OnItemSelectedListener filterListener = new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) { doSearch(); }
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
+        };
+        locationSpinner.setOnItemSelectedListener(filterListener);
+        categorySpinner.setOnItemSelectedListener(filterListener);
+
         // Check for app updates (12h cooldown, silent unless a new version exists)
         UpdateChecker.check(this, false);
+    }
+
+    private void setupFilters() {
+        String[] locations = {"All locations", "SW Las Vegas", "North Las Vegas", "Legacy Bids", "Nellis Outlet", "Wild Finds Henderson"};
+        String[] categories = {"All categories", "Electronics", "Home Improvement", "Furniture & Appliances", "Outdoors & Sports", "Patio & Garden", "Automotive", "Home & Household Essentials", "Clothing, Shoes & Accessories", "Toys & Games", "Beauty & Personal Care"};
+        ArrayAdapter<String> locA = new ArrayAdapter<>(this, R.layout.spinner_item, locations);
+        locA.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        locationSpinner.setAdapter(locA);
+        ArrayAdapter<String> catA = new ArrayAdapter<>(this, R.layout.spinner_item, categories);
+        catA.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        categorySpinner.setAdapter(catA);
     }
 
     @Override
@@ -125,11 +151,15 @@ public class MainActivity extends AppCompatActivity {
 
     private void doSearch() {
         String q = searchInput.getText().toString().trim();
+        String loc = locationSpinner != null && locationSpinner.getSelectedItemPosition() > 0
+                ? locationSpinner.getSelectedItem().toString() : "";
+        String cat = categorySpinner != null && categorySpinner.getSelectedItemPosition() > 0
+                ? categorySpinner.getSelectedItem().toString() : "";
         progress.setVisibility(View.VISIBLE);
         status.setVisibility(View.GONE);
         new Thread(() -> {
             try {
-                List<Item> items = NellisApi.search(q);
+                List<Item> items = NellisApi.search(q, loc, cat);
                 runOnUiThread(() -> {
                     progress.setVisibility(View.GONE);
                     adapter.setItems(items);

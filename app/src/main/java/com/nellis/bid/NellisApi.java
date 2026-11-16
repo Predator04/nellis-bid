@@ -24,14 +24,19 @@ public class NellisApi {
         "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120 Safari/537.36";
 
     /** Search Nellis and return decoded listings (with current bid price). */
-    public static List<Item> search(String query) throws Exception {
-        String url;
-        if (query == null || query.trim().isEmpty()) {
-            url = "https://www.nellisauction.com/search";
-        } else {
-            String q = URLEncoder.encode(query, "UTF-8");
-            url = "https://www.nellisauction.com/search?query=" + q;
+    public static List<Item> search(String query, String location, String category) throws Exception {
+        List<String> params = new ArrayList<>();
+        if (query != null && !query.trim().isEmpty()) {
+            params.add("query=" + URLEncoder.encode(query, "UTF-8"));
         }
+        if (location != null && !location.isEmpty()) {
+            params.add(URLEncoder.encode("Location Name", "UTF-8") + "=" + URLEncoder.encode(location, "UTF-8"));
+        }
+        if (category != null && !category.isEmpty()) {
+            params.add(URLEncoder.encode("Taxonomy Level 1", "UTF-8") + "=" + URLEncoder.encode(category, "UTF-8"));
+        }
+        String url = "https://www.nellisauction.com/search"
+                + (params.isEmpty() ? "" : "?" + String.join("&", params));
         String html = httpGet(url);
         JSONArray data = extractFlight(html);
         if (data == null) throw new Exception("no flight data (site may have changed)");
