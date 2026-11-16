@@ -3,6 +3,9 @@ package com.nellis.bid;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import androidx.security.crypto.EncryptedSharedPreferences;
+import androidx.security.crypto.MasterKey;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -19,6 +22,20 @@ public class AuthApi {
     private static final String UA = "Mozilla/5.0 (Linux; Android 14) NellisAuction/2.1.0";
     private static final String PREFS = "auth";
 
+    /** Encrypted storage for the auth token (Keystore-backed), falls back to plain if unavailable. */
+    private static SharedPreferences prefs(Context ctx) {
+        try {
+            MasterKey key = new MasterKey.Builder(ctx)
+                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                    .build();
+            return EncryptedSharedPreferences.create(ctx, PREFS, key,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM);
+        } catch (Exception e) {
+            return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        }
+    }
+
     /** Log in with email+password, store the token, return it. Throws on failure. */
     public static String login(Context ctx, String email, String password) throws Exception {
         JSONObject body = new JSONObject();
@@ -28,7 +45,7 @@ public class AuthApi {
         String token = findToken(resp);
         if (token == null) throw new Exception("Login failed — couldn't find a token. Response: " + resp);
         String refresh = findField(resp, "refreshToken", "refresh_token");
-        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+        prefs(ctx).edit()
                 .putString("accessToken", token)
                 .putString("refreshToken", refresh == null ? "" : refresh)
                 .putString("email", email)
@@ -45,15 +62,15 @@ public class AuthApi {
     }
 
     public static String getToken(Context ctx) {
-        return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("accessToken", null);
+        return prefs(ctx).getString("accessToken", null);
     }
 
     public static String getEmail(Context ctx) {
-        return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("email", null);
+        return prefs(ctx).getString("email", null);
     }
 
     public static void logout(Context ctx) {
-        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply();
+        prefs(ctx).edit().clear().apply();
     }
 
     /** Recursively find the first string token under a token-ish key. */

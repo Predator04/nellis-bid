@@ -1,6 +1,8 @@
 package com.nellis.bid;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.app.AlertDialog;
 import android.os.Bundle;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
@@ -29,6 +31,18 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // First-launch legal gate (third-party client)
+        SharedPreferences gate = getSharedPreferences("legal", MODE_PRIVATE);
+        if (!gate.getBoolean("accepted", false)) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Independent app")
+                    .setMessage("Nellis Bid is an independent third-party client. It is NOT affiliated with, endorsed by, or supported by Nellis Auction (Cret LLC). Bidding is done through your own Nellis account, and you accept full responsibility for all bids and purchases.")
+                    .setCancelable(false)
+                    .setPositiveButton("I accept", (d, w) -> gate.edit().putBoolean("accepted", true).apply())
+                    .setNegativeButton("Decline", (d, w) -> finish())
+                    .show();
+        }
 
         searchInput = findViewById(R.id.search_input);
         Button searchBtn = findViewById(R.id.search_btn);
@@ -65,11 +79,19 @@ public class MainActivity extends AppCompatActivity {
         settingsBtn.setOnClickListener(v -> {
             PopupMenu pm = new PopupMenu(this, v);
             pm.getMenu().add("Check for updates");
+            pm.getMenu().add("Disclaimer");
             pm.getMenu().add(AuthApi.getToken(this) != null ? "Log out" : "Log in");
             pm.setOnMenuItemClickListener(item -> {
                 String t = item.getTitle().toString();
                 if (t.equals("Check for updates")) {
                     UpdateChecker.check(this, true);
+                    return true;
+                } else if (t.equals("Disclaimer")) {
+                    new AlertDialog.Builder(this)
+                            .setTitle("Disclaimer")
+                            .setMessage("Nellis Bid is an independent third-party client. It is NOT affiliated with, endorsed by, or supported by Nellis Auction (Cret LLC). Bidding is done through your own Nellis account, and you accept full responsibility for all bids and purchases.")
+                            .setPositiveButton("OK", null)
+                            .show();
                     return true;
                 } else if (t.equals("Log out")) {
                     AuthApi.logout(this);
