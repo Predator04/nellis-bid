@@ -40,11 +40,12 @@ public class LoginActivity extends AppCompatActivity {
                     String token = AuthApi.login(LoginActivity.this, e, p);
                     runOnUiThread(() -> {
                         String raw = AuthApi.lastLoginResponse(LoginActivity.this);
+                        String cookie = AuthApi.getCookie(LoginActivity.this);
                         String t = (token != null && token.length() > 24)
                                 ? token.substring(0, 24) + "…" : token;
                         new AlertDialog.Builder(LoginActivity.this)
                                 .setTitle("Logged in — diagnostic")
-                                .setMessage("Token: " + t + "\n\nResponse:\n" + (raw.length() > 600 ? raw.substring(0, 600) : raw))
+                                .setMessage("Token: " + t + "\nCookie: " + cookie + "\n\nResponse:\n" + (raw.length() > 500 ? raw.substring(0, 500) : raw))
                                 .setPositiveButton("Done", (d, w) -> finish())
                                 .setNeutralButton("Copy response", (d, w) -> {
                                     ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);

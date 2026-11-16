@@ -29,7 +29,7 @@ public class AuthApi {
         JSONObject body = new JSONObject();
         body.put("email", email);
         body.put("password", password);
-        String resp = post("/v1/auth/sign-in", body.toString(), null);
+        String resp = post(ctx, "/v1/auth/sign-in", body.toString(), null);
         prefs(ctx).edit().putString("lastLoginResponse", resp).apply();
         String token = findToken(resp);
         if (token == null) throw new Exception("Login failed — couldn't find a token. Response: " + resp);
@@ -43,11 +43,13 @@ public class AuthApi {
     }
 
     /** Place a bid. Returns the raw response body on success; throws on error. */
-    public static String placeBid(String token, String productId, double amount) throws Exception {
+    public static String placeBid(Context ctx, String productId, double amount) throws Exception {
+        String token = getToken(ctx);
+        if (token == null) throw new Exception("Not logged in");
         JSONObject body = new JSONObject();
         body.put("productId", productId);
         body.put("amount", amount);
-        return post("/v1/bids", body.toString(), token);
+        return post(ctx, "/v1/bids", body.toString(), token);
     }
 
     public static String getToken(Context ctx) {
@@ -60,6 +62,10 @@ public class AuthApi {
 
     public static String lastLoginResponse(Context ctx) {
         return prefs(ctx).getString("lastLoginResponse", "");
+    }
+
+    public static String getCookie(Context ctx) {
+        return prefs(ctx).getString("cookie", "");
     }
 
     public static void logout(Context ctx) {
@@ -115,12 +121,14 @@ public class AuthApi {
         return null;
     }
 
-    private static String post(String path, String jsonBody, String token) throws Exception {
+    private static String post(Context ctx, String path, String jsonBody, String token) throws Exception {
         HttpURLConnection c = (HttpURLConnection) new URL(BASE + path).openConnection();
         c.setRequestMethod("POST");
         c.setRequestProperty("Content-Type", "application/json");
         c.setRequestProperty("User-Agent", UA);
         if (token != null) c.setRequestProperty("Authorization", "Bearer " + token);
+        String cookie = ctx != null ? prefs(ctx).getString("cookie", "") : "";
+        if (token != null && !cookie.isEmpty()) c.setRequestProperty("Cookie", cookie);
         c.setConnectTimeout(20000);
         c.setReadTimeout(30000);
         c.setDoOutput(true);
@@ -129,6 +137,10 @@ public class AuthApi {
         os.close();
 
         int code = c.getResponseCode();
+        String setCookie = c.getHeaderField("Set-Cookie");
+        if (setCookie != null && !setCookie.isEmpty() && ctx != null) {
+            prefs(ctx).edit().putString("cookie", setCookie.split(";")[0].trim()).apply();
+        }
         BufferedReader r = new BufferedReader(new InputStreamReader(
                 code >= 200 && code < 300 ? c.getInputStream() : c.getErrorStream(), "UTF-8"));
         StringBuilder sb = new StringBuilder();

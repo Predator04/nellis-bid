@@ -69,6 +69,8 @@ public class PurchasesActivity extends AppCompatActivity {
             c.setRequestMethod("GET");
             c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) NellisAuction/2.1.0");
             c.setRequestProperty("Authorization", "Bearer " + token);
+            String cookie = AuthApi.getCookie(this);
+            if (!cookie.isEmpty()) c.setRequestProperty("Cookie", cookie);
             c.setConnectTimeout(20000);
             c.setReadTimeout(30000);
             BufferedReader r = new BufferedReader(new InputStreamReader(

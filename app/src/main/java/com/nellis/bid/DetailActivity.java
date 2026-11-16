@@ -221,7 +221,7 @@ public class DetailActivity extends AppCompatActivity {
         bidStatus.setText("Placing bid…");
         new Thread(() -> {
             try {
-                AuthApi.placeBid(token, productId, amt);
+                AuthApi.placeBid(DetailActivity.this, productId, amt);
                 runOnUiThread(() -> bidStatus.setText("Bid placed ✓"));
             } catch (Exception e) {
                 runOnUiThread(() -> bidStatus.setText(e.getMessage()));
