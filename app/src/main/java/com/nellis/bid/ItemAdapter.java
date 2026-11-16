@@ -3,6 +3,8 @@ package com.nellis.bid;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.LruCache;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -30,6 +32,16 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.VH> {
     private final NumberFormat usd = NumberFormat.getCurrencyInstance(Locale.US);
     private final LruCache<String, Bitmap> imgCache = new LruCache<>(32);
     private final ExecutorService pool = Executors.newFixedThreadPool(4);
+    private final List<VH> bound = new ArrayList<>();
+    private final Handler ticker = new Handler(Looper.getMainLooper());
+    private final Runnable tick = new Runnable() {
+        @Override public void run() {
+            for (VH h : new ArrayList<>(bound)) {
+                if (h.item != null) h.time.setText(timeLeft(h.item.closeTime));
+            }
+            ticker.postDelayed(this, 1000);
+        }
+    };
 
     public void setItems(List<Item> newItems) {
         items.clear();
@@ -47,6 +59,8 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.VH> {
     @Override
     public void onBindViewHolder(@NonNull VH h, int position) {
         Item it = items.get(position);
+        h.item = it;
+        if (!bound.contains(h)) bound.add(h);
         h.itemView.setOnClickListener(v -> {
             Intent i = new Intent(v.getContext(), DetailActivity.class);
             i.putExtra("item", it);
@@ -95,6 +109,25 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.VH> {
         }
     }
 
+    @Override
+    public void onViewRecycled(@NonNull VH holder) {
+        bound.remove(holder);
+        super.onViewRecycled(holder);
+    }
+
+    @Override
+    public void onAttachedToRecyclerView(@NonNull RecyclerView recyclerView) {
+        super.onAttachedToRecyclerView(recyclerView);
+        ticker.postDelayed(tick, 1000);
+    }
+
+    @Override
+    public void onDetachedFromRecyclerView(@NonNull RecyclerView recyclerView) {
+        ticker.removeCallbacks(tick);
+        bound.clear();
+        super.onDetachedFromRecyclerView(recyclerView);
+    }
+
     private String buildCondition(Item it) {
         List<String> tags = new ArrayList<>();
         if (!it.condition.isEmpty()) tags.add(it.condition);
@@ -121,7 +154,7 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.VH> {
         long hh = d / 3600000;
         long mm = (d % 3600000) / 60000;
         long ss = (d % 60000) / 1000;
-        if (hh > 0) return hh + "h " + mm + "m";
+        if (hh > 0) return hh + "h " + mm + "m " + ss + "s";
         if (mm > 0) return mm + "m " + ss + "s";
         return ss + "s";
     }
@@ -162,6 +195,7 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.VH> {
     }
 
     static class VH extends RecyclerView.ViewHolder {
+        Item item;
         final ImageView img;
         final TextView title, bid, allIn, retail, condition, time, location;
         VH(View v) {

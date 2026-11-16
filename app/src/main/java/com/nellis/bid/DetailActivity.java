@@ -5,6 +5,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -36,6 +38,13 @@ public class DetailActivity extends AppCompatActivity {
     private TextView bidStatus;
     private List<String> currentPhotos = new ArrayList<>();
     private int currentIndex = 0;
+    private final Handler ticker = new Handler(Looper.getMainLooper());
+    private final Runnable tick = new Runnable() {
+        @Override public void run() {
+            if (item != null) time.setText(timeLeft(item.closeTime));
+            ticker.postDelayed(this, 1000);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,6 +116,14 @@ public class DetailActivity extends AppCompatActivity {
 
         // Fetch the full gallery + rich fields from the item detail page.
         refresh();
+
+        ticker.postDelayed(tick, 1000);
+    }
+
+    @Override
+    protected void onDestroy() {
+        ticker.removeCallbacks(tick);
+        super.onDestroy();
     }
 
     private void refresh() {
@@ -346,7 +363,7 @@ public class DetailActivity extends AppCompatActivity {
         long d = closeMs - System.currentTimeMillis();
         if (d < 0) return "ENDED";
         long hh = d / 3600000, mm = d % 3600000 / 60000, ss = d % 60000 / 1000;
-        if (hh > 0) return "Ends in " + hh + "h " + mm + "m";
+        if (hh > 0) return "Ends in " + hh + "h " + mm + "m " + ss + "s";
         if (mm > 0) return "Ends in " + mm + "m " + ss + "s";
         return "Ends in " + ss + "s";
     }
