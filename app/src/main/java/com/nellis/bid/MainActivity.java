@@ -30,11 +30,12 @@ public class MainActivity extends AppCompatActivity {
     private ProgressBar progress;
     private TextView status;
     private Button loginBtn;
-    private Spinner locationSpinner, categorySpinner, sortSpinner;
+    private Spinner locationSpinner, categorySpinner, sortSpinner, qualitySpinner;
     private Button updateBanner;
     private List<Item> lastResults = new ArrayList<>();
     private String similarCategory;   // taxonomy level 2 (or 1 fallback) for "similar items"
     private String similarTitle;
+    private static final String[] STAR_VALUES = {"", "5.0", "4.0", "3.0", "2.0", "1.0"};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,6 +76,7 @@ public class MainActivity extends AppCompatActivity {
         locationSpinner = findViewById(R.id.location_spinner);
         categorySpinner = findViewById(R.id.category_spinner);
         sortSpinner = findViewById(R.id.sort_spinner);
+        qualitySpinner = findViewById(R.id.quality_spinner);
         updateBanner = findViewById(R.id.update_banner);
         setupFilters();
 
@@ -171,6 +173,7 @@ public class MainActivity extends AppCompatActivity {
         };
         locationSpinner.setOnItemSelectedListener(filterListener);
         categorySpinner.setOnItemSelectedListener(filterListener);
+        qualitySpinner.setOnItemSelectedListener(filterListener);
         sortSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 adapter.setItems(applySort(lastResults));
@@ -204,6 +207,11 @@ public class MainActivity extends AppCompatActivity {
         ArrayAdapter<String> sortA = new ArrayAdapter<>(this, R.layout.spinner_item, sorts);
         sortA.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         sortSpinner.setAdapter(sortA);
+
+        String[] qualities = {"All quality", "5 stars", "4 stars", "3 stars", "2 stars", "1 star"};
+        ArrayAdapter<String> qA = new ArrayAdapter<>(this, R.layout.spinner_item, qualities);
+        qA.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        qualitySpinner.setAdapter(qA);
     }
 
     private List<Item> applySort(List<Item> items) {
@@ -319,11 +327,13 @@ public class MainActivity extends AppCompatActivity {
                 ? locationSpinner.getSelectedItem().toString() : "";
         String cat = categorySpinner != null && categorySpinner.getSelectedItemPosition() > 0
                 ? categorySpinner.getSelectedItem().toString() : "";
+        int qpos = qualitySpinner != null ? qualitySpinner.getSelectedItemPosition() : 0;
+        final String star = (qpos > 0 && qpos < STAR_VALUES.length) ? STAR_VALUES[qpos] : "";
         progress.setVisibility(View.VISIBLE);
         status.setVisibility(View.GONE);
         new Thread(() -> {
             try {
-                List<Item> items = NellisApi.search(q, loc, cat, similarCategory);
+                List<Item> items = NellisApi.search(q, loc, cat, similarCategory, star);
                 runOnUiThread(() -> {
                     progress.setVisibility(View.GONE);
                     lastResults = items;

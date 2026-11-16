@@ -110,6 +110,15 @@
             android:layout_marginStart="8dp"
             android:background="@drawable/bg_search"
             android:padding="4dp" />
+
+        <Spinner
+            android:id="@+id/quality_spinner"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_search"
+            android:padding="4dp" />
     </LinearLayout>
 
     <LinearLayout
