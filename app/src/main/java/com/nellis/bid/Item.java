@@ -57,4 +57,27 @@ public class Item implements Serializable {
         if (slug.length() > 80) slug = slug.substring(0, 80);
         return "https://www.nellisauction.com/p/" + slug + "/" + id;
     }
+
+    /** Amazon search URL from a cleaned title (drops condition notes + dashes). */
+    public String amazonUrl() {
+        String t = title == null ? "" : title;
+        t = t.split("\\*\\*")[0];
+        String[] segs = t.split("-{2,}");
+        String best = "";
+        for (String s : segs) {
+            s = s.trim();
+            if (s.length() > best.length()) best = s;
+        }
+        if (!best.isEmpty()) t = best;
+        t = t.replaceFirst("^(?i)(MAJOR DAMAGE|MINOR DAMAGE|SELLING FOR PARTS ONLY|PARTS ONLY|FOR PARTS|"
+                + "AS[- ]IS|UNTESTED|NOT TESTED|DAMAGED|BROKEN|MISSING [A-Z]+|NO POWER)\\s*[-:.]*\\s*", "");
+        t = t.replaceAll("\\(.*?\\)|\\[.*?\\]", " ");
+        t = t.replaceAll("\\s+", " ").trim();
+        if (t.length() > 90) t = t.substring(0, 90);
+        try {
+            return "https://www.amazon.com/s?k=" + java.net.URLEncoder.encode(t, "UTF-8");
+        } catch (Exception e) {
+            return "https://www.amazon.com/s?k=" + t;
+        }
+    }
 }

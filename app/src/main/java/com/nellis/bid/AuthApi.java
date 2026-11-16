@@ -3,9 +3,6 @@ package com.nellis.bid;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-import androidx.security.crypto.EncryptedSharedPreferences;
-import androidx.security.crypto.MasterKey;
-
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -22,18 +19,9 @@ public class AuthApi {
     private static final String UA = "Mozilla/5.0 (Linux; Android 14) NellisAuction/2.1.0";
     private static final String PREFS = "auth";
 
-    /** Encrypted storage for the auth token (Keystore-backed), falls back to plain if unavailable. */
+    /** Token storage — plain SharedPreferences so the login reliably survives app updates. */
     private static SharedPreferences prefs(Context ctx) {
-        try {
-            MasterKey key = new MasterKey.Builder(ctx)
-                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                    .build();
-            return EncryptedSharedPreferences.create(ctx, PREFS, key,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM);
-        } catch (Exception e) {
-            return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        }
+        return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
     /** Log in with email+password, store the token, return it. Throws on failure. */

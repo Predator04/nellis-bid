@@ -161,5 +161,31 @@
             android:textColor="@color/accent2"
             android:textSize="13sp" />
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/d_view_nellis"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="View on Nellis"
+                android:textColor="@color/text"
+                android:backgroundTint="#22FFFFFF" />
+
+            <Button
+                android:id="@+id/d_view_amazon"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="View on Amazon"
+                android:textColor="@color/text"
+                android:backgroundTint="#22FFFFFF" />
+        </LinearLayout>
+
     </LinearLayout>
 </ScrollView>

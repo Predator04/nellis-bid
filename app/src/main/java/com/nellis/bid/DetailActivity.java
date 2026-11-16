@@ -55,9 +55,13 @@ public class DetailActivity extends AppCompatActivity {
         Button bidBtn = findViewById(R.id.d_bid_btn);
         bidAmount = findViewById(R.id.d_bid_amount);
         bidStatus = findViewById(R.id.d_bid_status);
+        Button viewNellis = findViewById(R.id.d_view_nellis);
+        Button viewAmazon = findViewById(R.id.d_view_amazon);
 
         render();
         bidBtn.setOnClickListener(v -> onBid());
+        viewNellis.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(item.url()))));
+        viewAmazon.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(item.amazonUrl()))));
 
         // Fetch the full gallery from the item detail page.
         new Thread(() -> {
