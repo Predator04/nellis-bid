@@ -33,7 +33,6 @@ import java.util.Locale;
 public class UpdateChecker {
     private static final String REPO = "Predator04/nellis-bid";
     private static final String PREFS = "updater";
-    private static final long COOLDOWN_MS = 12 * 3600 * 1000L;
     private static final String KEY_PENDING = "pending_code";
     private static final String KEY_PENDING_URL = "pending_url";
 
@@ -53,11 +52,7 @@ public class UpdateChecker {
 
     public static void check(Context ctx, boolean manual, Runnable onDone) {
         SharedPreferences sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        long last = sp.getLong("last_check", 0);
-        if (!manual && System.currentTimeMillis() - last < COOLDOWN_MS) {
-            if (onDone != null) runOnUi(ctx, onDone);
-            return;
-        }
+        // Always check on launch so the update banner appears promptly (no cooldown)
         sp.edit().putLong("last_check", System.currentTimeMillis()).apply();
 
         new Thread(() -> {
@@ -117,18 +112,20 @@ public class UpdateChecker {
                 final int finalCode = latestCode;
                 sp.edit().putInt(KEY_PENDING, latestCode).putString(KEY_PENDING_URL, apkUrl).apply();
                 if (onDone != null) runOnUi(ctx, onDone);
-                runOnUi(ctx, () -> new AlertDialog.Builder(ctx)
-                        .setTitle("New update available")
-                        .setMessage("Version v" + finalCode + " is available (you're on v" + myCode + "). Download it now?")
-                        .setPositiveButton("Download", (d, w) -> download(ctx, finalUrl))
-                        .setNegativeButton("Later", null)
-                        .setNeutralButton("Skip this version", (d, w) ->
-                                ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-                                        .putInt("skipped", finalCode)
-                                        .putInt(KEY_PENDING, 0)
-                                        .remove(KEY_PENDING_URL)
-                                        .apply())
-                        .show());
+                if (manual) {
+                    runOnUi(ctx, () -> new AlertDialog.Builder(ctx)
+                            .setTitle("New update available")
+                            .setMessage("Version v" + finalCode + " is available (you're on v" + myCode + "). Download it now?")
+                            .setPositiveButton("Download", (d, w) -> download(ctx, finalUrl))
+                            .setNegativeButton("Later", null)
+                            .setNeutralButton("Skip this version", (d, w) ->
+                                    ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                                            .putInt("skipped", finalCode)
+                                            .putInt(KEY_PENDING, 0)
+                                            .remove(KEY_PENDING_URL)
+                                            .apply())
+                            .show());
+                }
             } catch (Exception e) {
                 if (manual) toast(ctx, "Update check failed: " + e.getMessage());
                 if (onDone != null) runOnUi(ctx, onDone);
