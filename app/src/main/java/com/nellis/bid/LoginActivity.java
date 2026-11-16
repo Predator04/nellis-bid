@@ -1,6 +1,8 @@
 package com.nellis.bid;
 
 import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -44,6 +46,11 @@ public class LoginActivity extends AppCompatActivity {
                                 .setTitle("Logged in — diagnostic")
                                 .setMessage("Token: " + t + "\n\nResponse:\n" + (raw.length() > 600 ? raw.substring(0, 600) : raw))
                                 .setPositiveButton("Done", (d, w) -> finish())
+                                .setNeutralButton("Copy response", (d, w) -> {
+                                    ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                                    cm.setPrimaryClip(ClipData.newPlainText("login", raw));
+                                    Toast.makeText(LoginActivity.this, "Copied — paste it to me", Toast.LENGTH_LONG).show();
+                                })
                                 .setCancelable(false)
                                 .show();
                     });
