@@ -102,7 +102,14 @@ public class DetailActivity extends AppCompatActivity {
         // Similar button only makes sense once we have a category
         similarBtn.setVisibility((item.taxonomy1.isEmpty() && item.taxonomy2.isEmpty()) ? View.GONE : View.VISIBLE);
 
+        Button refreshBtn = findViewById(R.id.d_refresh_btn);
+        refreshBtn.setOnClickListener(v -> refresh());
+
         // Fetch the full gallery + rich fields from the item detail page.
+        refresh();
+    }
+
+    private void refresh() {
         new Thread(() -> {
             try {
                 Item full = NellisApi.fetchDetail(item);
