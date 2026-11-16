@@ -207,15 +207,19 @@ public class NellisApi {
                 it.address = l.optString("address");
                 it.city = l.optString("city");
                 it.state = l.optString("state");
+                Object z = l.opt("zipCode");
+                if (z != null) it.zip = String.valueOf(z);
             }
 
             Object grade = p.opt("grade");
             if (grade instanceof JSONObject) {
                 JSONObject g = (JSONObject) grade;
                 it.condition = gradeDesc(g, "conditionType");
-                it.functional = gradeDesc(g, "functionalType");
-                it.missingParts = gradeDesc(g, "missingPartsType");
-                it.damage = gradeDesc(g, "damageType");
+                it.functional = mapGrade("functional", gradeDesc(g, "functionalType"));
+                it.missingParts = mapGrade("missing", gradeDesc(g, "missingPartsType"));
+                it.damage = mapGrade("damage", gradeDesc(g, "damageType"));
+                it.assembly = mapGrade("assembly", gradeDesc(g, "assemblyType"));
+                it.packaging = mapGrade("package", gradeDesc(g, "packageType"));
                 it.rating = g.optInt("rating", 0);
             }
 
@@ -235,6 +239,35 @@ public class NellisApi {
                     }
                 }
             }
+            it.taxonomy1 = p.optString("taxonomyLevel1");
+            it.taxonomy2 = p.optString("taxonomyLevel2");
+            it.brand = p.optString("brand");
+            it.color = p.optString("color");
+            it.dimensions = p.optString("dimensions");
+            it.weight = p.optString("weight");
+
+            Object desc = p.opt("descriptions");
+            if (desc instanceof JSONArray) {
+                JSONArray da = (JSONArray) desc;
+                StringBuilder dsb = new StringBuilder();
+                for (int i = 0; i < da.length(); i++) {
+                    String d = da.optString(i);
+                    if (!d.isEmpty()) dsb.append(dsb.length() > 0 ? "\n\n" : "").append(d);
+                }
+                it.description = dsb.toString();
+            } else if (desc instanceof String) {
+                it.description = (String) desc;
+            }
+
+            Object feat = p.opt("features");
+            if (feat instanceof JSONArray) {
+                JSONArray fa = (JSONArray) feat;
+                for (int i = 0; i < fa.length(); i++) {
+                    String f = fa.optString(i);
+                    if (!f.isEmpty()) it.features.add(f);
+                }
+            }
+
             it.photo = it.photos.isEmpty() ? "" : it.photos.get(0);
             return it;
         } catch (Exception e) {
@@ -246,6 +279,19 @@ public class NellisApi {
         Object v = grade.opt(key);
         if (v instanceof JSONObject) return ((JSONObject) v).optString("description");
         return "";
+    }
+
+    /** Map raw grade descriptions ("Yes"/"No"/"None") to the friendly labels the site shows. */
+    private static String mapGrade(String type, String desc) {
+        if (desc == null || desc.isEmpty()) return "";
+        switch (type) {
+            case "functional": return "Yes".equalsIgnoreCase(desc) ? "Functional" : "No".equalsIgnoreCase(desc) ? "Non-Functional" : desc;
+            case "damage": return "None".equalsIgnoreCase(desc) ? "No Damage" : desc;
+            case "assembly": return "No".equalsIgnoreCase(desc) ? "No Assembly Needed" : "Yes".equalsIgnoreCase(desc) ? "Assembly Needed" : desc;
+            case "package": return "Yes".equalsIgnoreCase(desc) ? "In Package" : "No".equalsIgnoreCase(desc) ? "Not in Package" : desc;
+            case "missing": return "No".equalsIgnoreCase(desc) ? "No Missing Parts" : "Missing: " + desc;
+            default: return desc;
+        }
     }
 
     private static long toEpochMs(Object o) {

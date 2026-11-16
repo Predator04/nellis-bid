@@ -17,7 +17,9 @@ import androidx.appcompat.app.AppCompatActivity;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -26,7 +28,8 @@ public class DetailActivity extends AppCompatActivity {
     private ImageView mainImg;
     private LinearLayout gallery;
     private Item item;
-    private TextView title, cond, bid, allin, retail, bids, time, loc, notes, inv;
+    private TextView title, quality, cond, bid, allin, retail, premium, bids, closes, time, inv, category;
+    private TextView descHeader, description, featHeader, features, detailsHeader, details, notes;
     private EditText bidAmount;
     private TextView bidStatus;
     private List<String> currentPhotos = new ArrayList<>();
@@ -43,15 +46,24 @@ public class DetailActivity extends AppCompatActivity {
         mainImg = findViewById(R.id.d_img);
         gallery = findViewById(R.id.d_gallery);
         title = findViewById(R.id.d_title);
+        quality = findViewById(R.id.d_quality);
         cond = findViewById(R.id.d_condition);
         bid = findViewById(R.id.d_bid);
         allin = findViewById(R.id.d_allin);
         retail = findViewById(R.id.d_retail);
+        premium = findViewById(R.id.d_premium);
         bids = findViewById(R.id.d_bids);
+        closes = findViewById(R.id.d_closes);
         time = findViewById(R.id.d_time);
-        loc = findViewById(R.id.d_location);
-        notes = findViewById(R.id.d_notes);
         inv = findViewById(R.id.d_inventory);
+        category = findViewById(R.id.d_category);
+        descHeader = findViewById(R.id.d_desc_header);
+        description = findViewById(R.id.d_description);
+        featHeader = findViewById(R.id.d_feat_header);
+        features = findViewById(R.id.d_features);
+        detailsHeader = findViewById(R.id.d_details_header);
+        details = findViewById(R.id.d_details);
+        notes = findViewById(R.id.d_notes);
         Button bidBtn = findViewById(R.id.d_bid_btn);
         bidAmount = findViewById(R.id.d_bid_amount);
         bidStatus = findViewById(R.id.d_bid_status);
@@ -70,7 +82,7 @@ public class DetailActivity extends AppCompatActivity {
             updateWatchBtn(watchBtn);
         });
 
-        // Fetch the full gallery from the item detail page.
+        // Fetch the full gallery + rich fields from the item detail page.
         new Thread(() -> {
             try {
                 Item full = NellisApi.fetchDetail(item);
@@ -85,26 +97,65 @@ public class DetailActivity extends AppCompatActivity {
 
     private void render() {
         title.setText(item.title.isEmpty() ? "(no title)" : item.title);
-        cond.setText(buildCondition(item));
+
+        // Quality: stars + condition tags
+        quality.setText(item.rating > 0 ? stars(item.rating) : "");
+        String c = buildCondition(item);
+        cond.setText(c);
+        cond.setVisibility(c.isEmpty() ? View.GONE : View.VISIBLE);
+
         bid.setText("Current bid: " + (item.currentBid > 0 ? usd.format(item.currentBid) : "—"));
         allin.setText("All-in (with fees): " + (item.allIn() > 0 ? usd.format(item.allIn()) : "—"));
         retail.setText("Retail: " + (item.retail > 0 ? usd.format(item.retail) : "—"));
+        premium.setText("Buyer's premium: " + (item.buyerPremium > 0 ? pct(item.buyerPremium) : "15") + "%");
         bids.setText(item.bidCount + " bids");
+
+        closes.setText(item.closeTime > 0 ? "Auction closes " + formatClose(item.closeTime) : "");
         time.setText(timeLeft(item.closeTime));
+        inv.setText("Inventory #" + item.inventoryNumber);
 
-        StringBuilder locStr = new StringBuilder(item.location);
-        if (!item.address.isEmpty()) locStr.append(" · ").append(item.address);
-        if (!item.city.isEmpty()) locStr.append(", ").append(item.city);
-        if (!item.state.isEmpty()) locStr.append(" ").append(item.state);
-        loc.setText(locStr.toString());
+        // Category breadcrumb ("Found in")
+        if (item.taxonomy1.isEmpty()) {
+            category.setVisibility(View.GONE);
+        } else {
+            category.setVisibility(View.VISIBLE);
+            category.setText("Found in: " + item.taxonomy1
+                    + (item.taxonomy2.isEmpty() ? "" : "  →  " + item.taxonomy2));
+        }
 
+        // Description
+        if (item.description.isEmpty()) {
+            descHeader.setVisibility(View.GONE);
+            description.setVisibility(View.GONE);
+        } else {
+            descHeader.setVisibility(View.VISIBLE);
+            description.setVisibility(View.VISIBLE);
+            description.setText(item.description);
+        }
+
+        // Features
+        if (item.features.isEmpty()) {
+            featHeader.setVisibility(View.GONE);
+            features.setVisibility(View.GONE);
+        } else {
+            featHeader.setVisibility(View.VISIBLE);
+            features.setVisibility(View.VISIBLE);
+            features.setText("• " + String.join("\n• ", item.features));
+        }
+
+        // Details (seller + pickup + specs)
+        detailsHeader.setVisibility(View.VISIBLE);
+        details.setVisibility(View.VISIBLE);
+        details.setText(buildDetails(item));
+
+        // Notes
         if (item.notes.isEmpty()) {
             notes.setVisibility(View.GONE);
         } else {
             notes.setVisibility(View.VISIBLE);
             notes.setText("Notes: " + item.notes);
         }
-        inv.setText("Inv #" + item.inventoryNumber);
+
         showGallery(item.photos);
         if (bidAmount != null && bidAmount.getText().toString().trim().isEmpty() && item.currentBid > 0) {
             long suggest = (long) Math.floor(item.currentBid) + 1;
@@ -196,17 +247,54 @@ public class DetailActivity extends AppCompatActivity {
     }
 
     private String buildCondition(Item it) {
+        List<String> tags = new ArrayList<>();
+        if (!it.condition.isEmpty()) tags.add(it.condition);
+        if (!it.functional.isEmpty()) tags.add(it.functional);
+        if (!it.damage.isEmpty()) tags.add(it.damage);
+        if (!it.assembly.isEmpty()) tags.add(it.assembly);
+        if (!it.packaging.isEmpty()) tags.add(it.packaging);
+        if (!it.missingParts.isEmpty()) tags.add(it.missingParts);
+        return String.join(" · ", tags);
+    }
+
+    private String buildDetails(Item it) {
         StringBuilder sb = new StringBuilder();
-        if (!it.condition.isEmpty()) sb.append(it.condition);
-        if (!it.functional.isEmpty() && !it.functional.equalsIgnoreCase(it.condition))
-            sb.append(sb.length() > 0 ? " · " : "").append(it.functional);
-        if (!it.missingParts.isEmpty())
-            sb.append(sb.length() > 0 ? " · " : "").append("Missing: ").append(it.missingParts);
-        if (!it.damage.isEmpty())
-            sb.append(sb.length() > 0 ? " · " : "").append(it.damage);
-        if (it.rating > 0)
-            sb.append(sb.length() > 0 ? " · " : "").append(it.rating).append("★");
+        sb.append("Seller: Nellis Auction");
+        String addr = fullAddress(it);
+        if (!addr.isEmpty()) sb.append("\nPickup: ").append(addr);
+        if (!it.brand.isEmpty()) sb.append("\nBrand: ").append(it.brand);
+        if (!it.color.isEmpty()) sb.append("  ·  Color: ").append(it.color);
+        if (!it.dimensions.isEmpty()) sb.append("\nDimensions: ").append(it.dimensions);
+        if (!it.weight.isEmpty()) sb.append("\nWeight: ").append(it.weight);
         return sb.toString();
+    }
+
+    private String fullAddress(Item it) {
+        StringBuilder sb = new StringBuilder();
+        if (!it.address.isEmpty()) sb.append(it.address);
+        if (!it.city.isEmpty()) sb.append(sb.length() > 0 ? ", " : "").append(it.city);
+        if (!it.state.isEmpty()) sb.append(" ").append(it.state);
+        if (!it.zip.isEmpty()) sb.append(" ").append(it.zip);
+        return sb.toString();
+    }
+
+    private String stars(int n) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 5; i++) sb.append(i < n ? "★" : "☆");
+        return sb.toString();
+    }
+
+    private String pct(double v) {
+        if (v == Math.floor(v)) return String.valueOf((long) v);
+        return String.valueOf(v);
+    }
+
+    private String formatClose(long ms) {
+        try {
+            return new SimpleDateFormat("MMM d, yyyy 'at' h:mm a", Locale.US).format(new Date(ms));
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private String timeLeft(long closeMs) {

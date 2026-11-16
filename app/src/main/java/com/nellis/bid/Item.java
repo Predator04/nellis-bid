@@ -32,6 +32,17 @@ public class Item implements Serializable {
     public String state = "";
     public double buyerPremium = -1;
     public int rating = 0;
+    public String taxonomy1 = "";
+    public String taxonomy2 = "";
+    public String description = "";
+    public List<String> features = new ArrayList<>();
+    public String assembly = "";
+    public String packaging = "";
+    public String zip = "";
+    public String brand = "";
+    public String color = "";
+    public String dimensions = "";
+    public String weight = "";
     public boolean notReturnable = false;
 
     public static final double PREMIUM = 0.15;
