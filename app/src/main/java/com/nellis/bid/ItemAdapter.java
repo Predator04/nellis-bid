@@ -13,6 +13,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -95,14 +96,21 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.VH> {
     }
 
     private String buildCondition(Item it) {
+        List<String> tags = new ArrayList<>();
+        if (!it.condition.isEmpty()) tags.add(it.condition);
+        if (!it.functional.isEmpty()) tags.add(it.functional);
+        if (!it.damage.isEmpty()) tags.add(it.damage);
+        if (!it.assembly.isEmpty()) tags.add(it.assembly);
+        if (!it.packaging.isEmpty()) tags.add(it.packaging);
+        if (!it.missingParts.isEmpty()) tags.add(it.missingParts);
+        String s = String.join(" · ", tags);
+        if (it.rating > 0) s = (s.isEmpty() ? "" : s + "   ") + stars(it.rating);
+        return s;
+    }
+
+    private String stars(int n) {
         StringBuilder sb = new StringBuilder();
-        if (!it.condition.isEmpty()) sb.append(it.condition);
-        if (!it.functional.isEmpty() && !it.functional.equalsIgnoreCase(it.condition))
-            sb.append(sb.length() > 0 ? " · " : "").append(it.functional);
-        if (!it.missingParts.isEmpty())
-            sb.append(sb.length() > 0 ? " · " : "").append("Missing: ").append(it.missingParts);
-        if (!it.damage.isEmpty())
-            sb.append(sb.length() > 0 ? " · " : "").append(it.damage);
+        for (int i = 0; i < 5; i++) sb.append(i < n ? "★" : "☆");
         return sb.toString();
     }
 
@@ -126,11 +134,23 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.VH> {
             c.setRequestProperty("User-Agent", "Mozilla/5.0");
             c.connect();
             if (c.getResponseCode() != 200) return null;
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
             InputStream in = c.getInputStream();
-            Bitmap bmp = BitmapFactory.decodeStream(in);
+            byte[] buf = new byte[16384];
+            int n;
+            while ((n = in.read(buf)) != -1) baos.write(buf, 0, n);
             in.close();
             c.disconnect();
-            return bmp;
+            byte[] bytes = baos.toByteArray();
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inJustDecodeBounds = true;
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.length, opts);
+            int sample = 1;
+            int maxDim = Math.max(opts.outWidth, opts.outHeight);
+            while (maxDim / sample > 800) sample *= 2;
+            opts.inJustDecodeBounds = false;
+            opts.inSampleSize = sample;
+            return BitmapFactory.decodeByteArray(bytes, 0, bytes.length, opts);
         } catch (Exception e) {
             return null;
         }
