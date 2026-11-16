@@ -20,6 +20,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -29,8 +30,9 @@ public class MainActivity extends AppCompatActivity {
     private ProgressBar progress;
     private TextView status;
     private Button loginBtn;
-    private Spinner locationSpinner, categorySpinner;
+    private Spinner locationSpinner, categorySpinner, sortSpinner;
     private Button updateBanner;
+    private List<Item> lastResults = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
         loginBtn = findViewById(R.id.login_btn);
         locationSpinner = findViewById(R.id.location_spinner);
         categorySpinner = findViewById(R.id.category_spinner);
+        sortSpinner = findViewById(R.id.sort_spinner);
         updateBanner = findViewById(R.id.update_banner);
         setupFilters();
 
@@ -159,6 +162,12 @@ public class MainActivity extends AppCompatActivity {
         };
         locationSpinner.setOnItemSelectedListener(filterListener);
         categorySpinner.setOnItemSelectedListener(filterListener);
+        sortSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                adapter.setItems(applySort(lastResults));
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
+        });
 
         // Check for app updates (12h cooldown, silent unless a new version exists)
         UpdateChecker.check(this, false, this::refreshUpdateBanner);
@@ -181,6 +190,48 @@ public class MainActivity extends AppCompatActivity {
         ArrayAdapter<String> catA = new ArrayAdapter<>(this, R.layout.spinner_item, categories);
         catA.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         categorySpinner.setAdapter(catA);
+
+        String[] sorts = {"Default order", "Ending soon", "Newest", "Price: low → high", "Price: high → low", "Best deal", "Most bids"};
+        ArrayAdapter<String> sortA = new ArrayAdapter<>(this, R.layout.spinner_item, sorts);
+        sortA.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        sortSpinner.setAdapter(sortA);
+    }
+
+    private List<Item> applySort(List<Item> items) {
+        int pos = sortSpinner.getSelectedItemPosition();
+        if (pos <= 0 || items == null) return items;
+        List<Item> out = new ArrayList<>(items);
+        long now = System.currentTimeMillis();
+        switch (pos) {
+            case 1: // ending soon (open only)
+                out.removeIf(i -> i.closeTime <= now);
+                out.sort((a, b) -> Long.compare(a.closeTime, b.closeTime));
+                break;
+            case 2: // newest
+                out.sort((a, b) -> Long.compare(b.openTime, a.openTime));
+                break;
+            case 3: // price low -> high
+                out.sort((a, b) -> Double.compare(price(a), price(b)));
+                break;
+            case 4: // price high -> low
+                out.sort((a, b) -> Double.compare(price(b), price(a)));
+                break;
+            case 5: // best deal (biggest discount vs retail)
+                out.sort((a, b) -> Double.compare(discount(b), discount(a)));
+                break;
+            case 6: // most bids
+                out.sort((a, b) -> Integer.compare(b.bidCount, a.bidCount));
+                break;
+        }
+        return out;
+    }
+
+    private double price(Item i) {
+        return i.currentBid > 0 ? i.currentBid : Double.MAX_VALUE;
+    }
+
+    private double discount(Item i) {
+        return i.retail > 0 && i.currentBid > 0 ? i.retail - i.currentBid : -1;
     }
 
     private void openAccount(String endpoint, String label) {
@@ -258,8 +309,10 @@ public class MainActivity extends AppCompatActivity {
                 List<Item> items = NellisApi.search(q, loc, cat);
                 runOnUiThread(() -> {
                     progress.setVisibility(View.GONE);
-                    adapter.setItems(items);
-                    status.setText(items.size() + " items · all-in = bid + 15% premium + 8.375% tax");
+                    lastResults = items;
+                    List<Item> sorted = applySort(items);
+                    adapter.setItems(sorted);
+                    status.setText(sorted.size() + " items · all-in = bid + 15% premium + 8.375% tax");
                     status.setVisibility(View.VISIBLE);
                 });
             } catch (Exception e) {
