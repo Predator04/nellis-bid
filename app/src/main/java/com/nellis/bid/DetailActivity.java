@@ -69,11 +69,19 @@ public class DetailActivity extends AppCompatActivity {
         bidStatus = findViewById(R.id.d_bid_status);
         Button viewNellis = findViewById(R.id.d_view_nellis);
         Button viewAmazon = findViewById(R.id.d_view_amazon);
+        Button similarBtn = findViewById(R.id.d_similar_btn);
 
         render();
         bidBtn.setOnClickListener(v -> onBid());
         viewNellis.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(item.url()))));
         viewAmazon.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(item.amazonUrl()))));
+        similarBtn.setOnClickListener(v -> {
+            Intent i = new Intent(this, MainActivity.class);
+            i.putExtra("similar_tax2", item.taxonomy2);
+            i.putExtra("similar_tax1", item.taxonomy1);
+            i.putExtra("similar_title", item.title);
+            startActivity(i);
+        });
 
         Button watchBtn = findViewById(R.id.d_watch_btn);
         updateWatchBtn(watchBtn);
@@ -81,6 +89,9 @@ public class DetailActivity extends AppCompatActivity {
             Watchlist.toggle(this, item);
             updateWatchBtn(watchBtn);
         });
+
+        // Similar button only makes sense once we have a category
+        similarBtn.setVisibility((item.taxonomy1.isEmpty() && item.taxonomy2.isEmpty()) ? View.GONE : View.VISIBLE);
 
         // Fetch the full gallery + rich fields from the item detail page.
         new Thread(() -> {

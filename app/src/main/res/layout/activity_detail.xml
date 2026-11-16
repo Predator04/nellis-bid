@@ -39,7 +39,8 @@
             android:layout_marginTop="14dp"
             android:textColor="@color/text"
             android:textSize="18sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:textIsSelectable="true" />
 
         <TextView
             android:id="@+id/d_quality"
@@ -130,7 +131,8 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:textColor="@color/muted"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            android:textIsSelectable="true" />
 
         <TextView
             android:id="@+id/d_category"
@@ -157,7 +159,8 @@
             android:layout_marginTop="4dp"
             android:textColor="@color/text"
             android:textSize="14sp"
-            android:lineSpacingExtra="3dp" />
+            android:lineSpacingExtra="3dp"
+            android:textIsSelectable="true" />
 
         <TextView
             android:id="@+id/d_feat_header"
@@ -176,7 +179,8 @@
             android:layout_marginTop="4dp"
             android:textColor="@color/text"
             android:textSize="13sp"
-            android:lineSpacingExtra="3dp" />
+            android:lineSpacingExtra="3dp"
+            android:textIsSelectable="true" />
 
         <TextView
             android:id="@+id/d_details_header"
@@ -195,7 +199,8 @@
             android:layout_marginTop="4dp"
             android:textColor="@color/muted"
             android:textSize="13sp"
-            android:lineSpacingExtra="2dp" />
+            android:lineSpacingExtra="2dp"
+            android:textIsSelectable="true" />
 
         <TextView
             android:id="@+id/d_notes"
@@ -203,7 +208,8 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:textColor="@color/accent2"
-            android:textSize="13sp" />
+            android:textSize="13sp"
+            android:textIsSelectable="true" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -268,6 +274,15 @@
                 android:textColor="@color/text"
                 android:backgroundTint="#22FFFFFF" />
         </LinearLayout>
+
+        <Button
+            android:id="@+id/d_similar_btn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Similar items"
+            android:textColor="@color/text"
+            android:backgroundTint="#22FFFFFF" />
 
         <Button
             android:id="@+id/d_watch_btn"

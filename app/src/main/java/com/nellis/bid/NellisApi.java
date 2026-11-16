@@ -25,6 +25,10 @@ public class NellisApi {
 
     /** Search Nellis and return decoded listings (with current bid price). */
     public static List<Item> search(String query, String location, String category) throws Exception {
+        return search(query, location, category, "");
+    }
+
+    public static List<Item> search(String query, String location, String category, String taxonomy2) throws Exception {
         List<String> params = new ArrayList<>();
         if (query != null && !query.trim().isEmpty()) {
             params.add("query=" + URLEncoder.encode(query, "UTF-8"));
@@ -34,6 +38,9 @@ public class NellisApi {
         }
         if (category != null && !category.isEmpty()) {
             params.add(URLEncoder.encode("Taxonomy Level 1", "UTF-8") + "=" + URLEncoder.encode(category, "UTF-8"));
+        }
+        if (taxonomy2 != null && !taxonomy2.isEmpty()) {
+            params.add(URLEncoder.encode("Taxonomy Level 2", "UTF-8") + "=" + URLEncoder.encode(taxonomy2, "UTF-8"));
         }
         String url = "https://www.nellisauction.com/search"
                 + (params.isEmpty() ? "" : "?" + String.join("&", params));

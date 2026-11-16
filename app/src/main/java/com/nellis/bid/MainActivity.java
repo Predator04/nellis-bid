@@ -33,11 +33,20 @@ public class MainActivity extends AppCompatActivity {
     private Spinner locationSpinner, categorySpinner, sortSpinner;
     private Button updateBanner;
     private List<Item> lastResults = new ArrayList<>();
+    private String similarCategory;   // taxonomy level 2 (or 1 fallback) for "similar items"
+    private String similarTitle;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // "Similar items" — open a feed filtered to the item's category
+        similarCategory = getIntent().getStringExtra("similar_tax2");
+        if (similarCategory == null || similarCategory.isEmpty()) {
+            similarCategory = getIntent().getStringExtra("similar_tax1");
+        }
+        similarTitle = getIntent().getStringExtra("similar_title");
 
         // First-launch legal gate (third-party client)
         SharedPreferences gate = getSharedPreferences("legal", MODE_PRIVATE);
@@ -191,7 +200,7 @@ public class MainActivity extends AppCompatActivity {
         catA.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         categorySpinner.setAdapter(catA);
 
-        String[] sorts = {"Default order", "Ending soon", "Newest", "Price: low → high", "Price: high → low", "Best deal", "Most bids"};
+        String[] sorts = {"Default order", "Ending soon", "Newest", "Price: low → high", "Price: high → low", "Best deal", "Most bids", "First bid (no bids)", "Ending today"};
         ArrayAdapter<String> sortA = new ArrayAdapter<>(this, R.layout.spinner_item, sorts);
         sortA.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         sortSpinner.setAdapter(sortA);
@@ -221,6 +230,14 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case 6: // most bids
                 out.sort((a, b) -> Integer.compare(b.bidCount, a.bidCount));
+                break;
+            case 7: // first bid (no bids yet)
+                out.removeIf(i -> i.bidCount > 0 || i.closeTime <= now);
+                out.sort((a, b) -> Long.compare(a.closeTime, b.closeTime));
+                break;
+            case 8: // ending today
+                out.removeIf(i -> i.closeTime <= now || i.closeTime > now + 24L * 3600 * 1000);
+                out.sort((a, b) -> Long.compare(a.closeTime, b.closeTime));
                 break;
         }
         return out;
@@ -306,13 +323,15 @@ public class MainActivity extends AppCompatActivity {
         status.setVisibility(View.GONE);
         new Thread(() -> {
             try {
-                List<Item> items = NellisApi.search(q, loc, cat);
+                List<Item> items = NellisApi.search(q, loc, cat, similarCategory);
                 runOnUiThread(() -> {
                     progress.setVisibility(View.GONE);
                     lastResults = items;
                     List<Item> sorted = applySort(items);
                     adapter.setItems(sorted);
-                    status.setText(sorted.size() + " items · all-in = bid + 15% premium + 8.375% tax");
+                    String prefix = (similarTitle != null && !similarTitle.isEmpty())
+                            ? "Similar to " + similarTitle + " — " : "";
+                    status.setText(prefix + sorted.size() + " items · all-in = bid + 15% premium + 8.375% tax");
                     status.setVisibility(View.VISIBLE);
                 });
             } catch (Exception e) {
