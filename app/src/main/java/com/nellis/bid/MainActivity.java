@@ -85,12 +85,16 @@ public class MainActivity extends AppCompatActivity {
         Button settingsBtn = findViewById(R.id.settings_btn);
         settingsBtn.setOnClickListener(v -> {
             PopupMenu pm = new PopupMenu(this, v);
+            pm.getMenu().add("Watchlist");
             pm.getMenu().add("Check for updates");
             pm.getMenu().add("Disclaimer");
             pm.getMenu().add(AuthApi.getToken(this) != null ? "Log out" : "Log in");
             pm.setOnMenuItemClickListener(item -> {
                 String t = item.getTitle().toString();
-                if (t.equals("Check for updates")) {
+                if (t.equals("Watchlist")) {
+                    startActivity(new Intent(this, WatchlistActivity.class));
+                    return true;
+                } else if (t.equals("Check for updates")) {
                     UpdateChecker.check(this, true);
                     return true;
                 } else if (t.equals("Disclaimer")) {

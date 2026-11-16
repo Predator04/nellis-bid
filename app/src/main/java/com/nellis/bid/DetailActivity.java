@@ -63,6 +63,13 @@ public class DetailActivity extends AppCompatActivity {
         viewNellis.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(item.url()))));
         viewAmazon.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(item.amazonUrl()))));
 
+        Button watchBtn = findViewById(R.id.d_watch_btn);
+        updateWatchBtn(watchBtn);
+        watchBtn.setOnClickListener(v -> {
+            Watchlist.toggle(this, item);
+            updateWatchBtn(watchBtn);
+        });
+
         // Fetch the full gallery from the item detail page.
         new Thread(() -> {
             try {
@@ -182,6 +189,10 @@ public class DetailActivity extends AppCompatActivity {
             } catch (Exception ignored) {
             }
         }).start();
+    }
+
+    private void updateWatchBtn(Button b) {
+        b.setText(Watchlist.isWatched(this, item.id) ? "★ Watching" : "☆ Watch");
     }
 
     private String buildCondition(Item it) {

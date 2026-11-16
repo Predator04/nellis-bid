@@ -187,5 +187,14 @@
                 android:backgroundTint="#22FFFFFF" />
         </LinearLayout>
 
+        <Button
+            android:id="@+id/d_watch_btn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="☆ Watch"
+            android:textColor="@color/accent2"
+            android:backgroundTint="#22FFFFFF" />
+
     </LinearLayout>
 </ScrollView>
