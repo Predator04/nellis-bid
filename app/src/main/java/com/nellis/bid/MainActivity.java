@@ -30,6 +30,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView status;
     private Button loginBtn;
     private Spinner locationSpinner, categorySpinner;
+    private Button updateBanner;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,6 +63,7 @@ public class MainActivity extends AppCompatActivity {
         loginBtn = findViewById(R.id.login_btn);
         locationSpinner = findViewById(R.id.location_spinner);
         categorySpinner = findViewById(R.id.category_spinner);
+        updateBanner = findViewById(R.id.update_banner);
         setupFilters();
 
         adapter = new ItemAdapter();
@@ -125,7 +127,7 @@ public class MainActivity extends AppCompatActivity {
                     showSavedSearches();
                     return true;
                 } else if (t.equals("Check for updates")) {
-                    UpdateChecker.check(this, true);
+                    UpdateChecker.check(this, true, this::refreshUpdateBanner);
                     return true;
                 } else if (t.equals("Disclaimer")) {
                     new AlertDialog.Builder(this)
@@ -159,7 +161,15 @@ public class MainActivity extends AppCompatActivity {
         categorySpinner.setOnItemSelectedListener(filterListener);
 
         // Check for app updates (12h cooldown, silent unless a new version exists)
-        UpdateChecker.check(this, false);
+        UpdateChecker.check(this, false, this::refreshUpdateBanner);
+
+        // Update banner: tap to download the pending update
+        updateBanner.setOnClickListener(v -> {
+            String url = UpdateChecker.pendingUrl(this);
+            if (url != null) UpdateChecker.download(this, url);
+            else UpdateChecker.check(this, true, this::refreshUpdateBanner);
+        });
+        refreshUpdateBanner();
     }
 
     private void setupFilters() {
@@ -218,10 +228,21 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         updateLoginButton();
+        refreshUpdateBanner();
     }
 
     private void updateLoginButton() {
         loginBtn.setText(AuthApi.getEmail(this) != null ? "Log out" : "Login");
+    }
+
+    private void refreshUpdateBanner() {
+        int pending = UpdateChecker.pendingVersion(this);
+        if (pending > BuildConfig.VERSION_CODE) {
+            updateBanner.setVisibility(View.VISIBLE);
+            updateBanner.setText("⬆ Update available (v" + pending + ") — tap to download");
+        } else {
+            updateBanner.setVisibility(View.GONE);
+        }
     }
 
     private void doSearch() {

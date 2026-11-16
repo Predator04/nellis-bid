@@ -39,6 +39,17 @@
             android:backgroundTint="#22FFFFFF" />
     </LinearLayout>
 
+    <Button
+        android:id="@+id/update_banner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="Update available"
+        android:textColor="@color/bg"
+        android:textStyle="bold"
+        android:backgroundTint="@color/accent2"
+        android:visibility="gone" />
+
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

@@ -34,11 +34,30 @@ public class UpdateChecker {
     private static final String REPO = "Predator04/nellis-bid";
     private static final String PREFS = "updater";
     private static final long COOLDOWN_MS = 12 * 3600 * 1000L;
+    private static final String KEY_PENDING = "pending_code";
+    private static final String KEY_PENDING_URL = "pending_url";
+
+    /** Version code of a pending update (0 = none). */
+    public static int pendingVersion(Context ctx) {
+        return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KEY_PENDING, 0);
+    }
+
+    /** APK URL of a pending update, or null if none. */
+    public static String pendingUrl(Context ctx) {
+        return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_PENDING_URL, null);
+    }
 
     public static void check(Context ctx, boolean manual) {
+        check(ctx, manual, null);
+    }
+
+    public static void check(Context ctx, boolean manual, Runnable onDone) {
         SharedPreferences sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         long last = sp.getLong("last_check", 0);
-        if (!manual && System.currentTimeMillis() - last < COOLDOWN_MS) return;
+        if (!manual && System.currentTimeMillis() - last < COOLDOWN_MS) {
+            if (onDone != null) runOnUi(ctx, onDone);
+            return;
+        }
         sp.edit().putLong("last_check", System.currentTimeMillis()).apply();
 
         new Thread(() -> {
@@ -50,6 +69,7 @@ public class UpdateChecker {
                 c.setReadTimeout(15000);
                 if (c.getResponseCode() != 200) {
                     if (manual) toast(ctx, "Update check failed (HTTP " + c.getResponseCode() + ")");
+                    if (onDone != null) runOnUi(ctx, onDone);
                     return;
                 }
                 BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream()));
@@ -66,10 +86,15 @@ public class UpdateChecker {
                 int myCode = BuildConfig.VERSION_CODE;
 
                 if (latestCode <= myCode) {
+                    sp.edit().putInt(KEY_PENDING, 0).remove(KEY_PENDING_URL).apply();
                     if (manual) toast(ctx, "You're up to date (v" + myCode + ")");
+                    if (onDone != null) runOnUi(ctx, onDone);
                     return;
                 }
-                if (sp.getInt("skipped", 0) == latestCode && !manual) return;
+                if (sp.getInt("skipped", 0) == latestCode && !manual) {
+                    if (onDone != null) runOnUi(ctx, onDone);
+                    return;
+                }
 
                 String apkUrl = null;
                 JSONArray assets = rel.optJSONArray("assets");
@@ -84,28 +109,35 @@ public class UpdateChecker {
                 }
                 if (apkUrl == null) {
                     if (manual) toast(ctx, "No APK in the latest release");
+                    if (onDone != null) runOnUi(ctx, onDone);
                     return;
                 }
 
                 final String finalUrl = apkUrl;
                 final int finalCode = latestCode;
+                sp.edit().putInt(KEY_PENDING, latestCode).putString(KEY_PENDING_URL, apkUrl).apply();
+                if (onDone != null) runOnUi(ctx, onDone);
                 runOnUi(ctx, () -> new AlertDialog.Builder(ctx)
                         .setTitle("New update available")
                         .setMessage("Version v" + finalCode + " is available (you're on v" + myCode + "). Download it now?")
                         .setPositiveButton("Download", (d, w) -> download(ctx, finalUrl))
                         .setNegativeButton("Later", null)
                         .setNeutralButton("Skip this version", (d, w) ->
-                                ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                                        .edit().putInt("skipped", finalCode).apply())
+                                ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                                        .putInt("skipped", finalCode)
+                                        .putInt(KEY_PENDING, 0)
+                                        .remove(KEY_PENDING_URL)
+                                        .apply())
                         .show());
             } catch (Exception e) {
                 if (manual) toast(ctx, "Update check failed: " + e.getMessage());
+                if (onDone != null) runOnUi(ctx, onDone);
             }
         }).start();
     }
 
     /** Download the APK with a live progress bar + speed readout, then open the installer. */
-    private static void download(Context ctx, String apkUrl) {
+    public static void download(Context ctx, String apkUrl) {
         ProgressBar bar = new ProgressBar(ctx, null, android.R.attr.progressBarStyleHorizontal);
         bar.setMax(100);
         TextView txt = new TextView(ctx);
