@@ -1,6 +1,9 @@
 package com.nellis.bid;
 
+import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -30,9 +33,18 @@ public class PurchasesActivity extends AppCompatActivity {
         TextView body = findViewById(R.id.p_body);
         title.setText(label);
 
+        Button loginBtn = findViewById(R.id.p_login_btn);
+        loginBtn.setOnClickListener(v -> {
+            AuthApi.logout(this);
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+        });
+
         String token = AuthApi.getToken(this);
         if (token == null) {
             body.setText("Log in to see " + label.toLowerCase() + ".");
+            loginBtn.setText("Log in");
+            loginBtn.setVisibility(View.VISIBLE);
             return;
         }
 
@@ -40,7 +52,13 @@ public class PurchasesActivity extends AppCompatActivity {
         final String ep = endpoint;
         new Thread(() -> {
             String result = fetch(token, ep);
-            runOnUiThread(() -> body.setText(result));
+            runOnUiThread(() -> {
+                body.setText(result);
+                if (result.startsWith("Session expired")) {
+                    AuthApi.logout(this);
+                    loginBtn.setVisibility(View.VISIBLE);
+                }
+            });
         }).start();
     }
 
@@ -61,6 +79,7 @@ public class PurchasesActivity extends AppCompatActivity {
             r.close();
             c.disconnect();
             if (c.getResponseCode() != 200) {
+                if (c.getResponseCode() == 401) return "Session expired — your login timed out.";
                 try {
                     JSONObject j = new JSONObject(sb.toString());
                     String m = j.optString("message", "");

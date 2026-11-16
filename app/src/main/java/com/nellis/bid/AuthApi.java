@@ -61,10 +61,11 @@ public class AuthApi {
         prefs(ctx).edit().clear().apply();
     }
 
-    /** Recursively find the first string token under a token-ish key. */
+    /** Recursively find the access token — prefer the specific auth-token keys over generic "token". */
     private static String findToken(String json) {
-        String t = findField(json, "accessToken", "access_token", "token", "jwt", "id_token", "idToken");
-        return t;
+        String t = findField(json, "accessToken", "access_token", "id_token", "idToken", "jwt");
+        if (t != null) return t;
+        return findField(json, "token");
     }
 
     private static String findField(String json, String... keys) {
