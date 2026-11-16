@@ -19,6 +19,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +30,7 @@ public class MainActivity extends AppCompatActivity {
     private ItemAdapter adapter;
     private ProgressBar progress;
     private TextView status;
+    private SwipeRefreshLayout swipe;
     private Button loginBtn;
     private Spinner locationSpinner, categorySpinner, sortSpinner, qualitySpinner;
     private Button updateBanner;
@@ -70,6 +72,7 @@ public class MainActivity extends AppCompatActivity {
         searchInput = findViewById(R.id.search_input);
         Button searchBtn = findViewById(R.id.search_btn);
         list = findViewById(R.id.list);
+        swipe = findViewById(R.id.swipe);
         progress = findViewById(R.id.progress);
         status = findViewById(R.id.status);
         loginBtn = findViewById(R.id.login_btn);
@@ -84,6 +87,8 @@ public class MainActivity extends AppCompatActivity {
         adapter = new ItemAdapter();
         list.setLayoutManager(new LinearLayoutManager(this));
         list.setAdapter(adapter);
+        swipe.setColorSchemeColors(getColor(R.color.accent));
+        swipe.setOnRefreshListener(this::doSearch);
 
         searchBtn.setOnClickListener(v -> doSearch());
         searchInput.setOnEditorActionListener((v, actionId, event) -> {
@@ -379,6 +384,7 @@ public class MainActivity extends AppCompatActivity {
                 List<Item> items = NellisApi.search(q, loc, cat, similarCategory, star);
                 runOnUiThread(() -> {
                     progress.setVisibility(View.GONE);
+                    swipe.setRefreshing(false);
                     lastResults = items;
                     List<Item> sorted = applySort(items);
                     adapter.setItems(sorted);
@@ -390,6 +396,7 @@ public class MainActivity extends AppCompatActivity {
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     progress.setVisibility(View.GONE);
+                    swipe.setRefreshing(false);
                     status.setText(friendlyError(e));
                     status.setVisibility(View.VISIBLE);
                 });
