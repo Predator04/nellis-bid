@@ -48,6 +48,12 @@ public class MainActivity extends AppCompatActivity {
                     .show();
         }
 
+        // Request notification permission (for auction-ending reminders) on Android 13+
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+                checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 100);
+        }
+
         searchInput = findViewById(R.id.search_input);
         Button searchBtn = findViewById(R.id.search_btn);
         list = findViewById(R.id.list);

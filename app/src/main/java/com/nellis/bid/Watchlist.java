@@ -25,11 +25,13 @@ public class Watchlist {
     public static void add(Context ctx, Item item) {
         SharedPreferences sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         sp.edit().putString("item_" + item.id, itemToJson(item)).putBoolean("w_" + item.id, true).apply();
+        ReminderReceiver.schedule(ctx, item);
     }
 
     public static void remove(Context ctx, String id) {
         SharedPreferences sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         sp.edit().remove("item_" + id).remove("w_" + id).apply();
+        ReminderReceiver.cancel(ctx, id);
     }
 
     public static List<Item> getAll(Context ctx) {
