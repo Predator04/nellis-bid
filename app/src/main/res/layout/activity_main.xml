@@ -28,6 +28,15 @@
             android:text="Login"
             android:textColor="@color/bg"
             android:backgroundTint="@color/accent2" />
+
+        <Button
+            android:id="@+id/settings_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text="⚙"
+            android:textColor="@color/text"
+            android:backgroundTint="#22FFFFFF" />
     </LinearLayout>
 
     <TextView

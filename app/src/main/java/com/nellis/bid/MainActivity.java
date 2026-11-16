@@ -6,6 +6,7 @@ import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -60,6 +61,29 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        Button settingsBtn = findViewById(R.id.settings_btn);
+        settingsBtn.setOnClickListener(v -> {
+            PopupMenu pm = new PopupMenu(this, v);
+            pm.getMenu().add("Check for updates");
+            pm.getMenu().add(AuthApi.getToken(this) != null ? "Log out" : "Log in");
+            pm.setOnMenuItemClickListener(item -> {
+                String t = item.getTitle().toString();
+                if (t.equals("Check for updates")) {
+                    UpdateChecker.check(this, true);
+                    return true;
+                } else if (t.equals("Log out")) {
+                    AuthApi.logout(this);
+                    updateLoginButton();
+                    Toast.makeText(this, "Logged out", Toast.LENGTH_SHORT).show();
+                    return true;
+                } else {
+                    startActivity(new Intent(this, LoginActivity.class));
+                    return true;
+                }
+            });
+            pm.show();
+        });
+
         // Default feed on launch (empty query -> Nellis's default discovery)
         doSearch();
 
@@ -93,10 +117,20 @@ public class MainActivity extends AppCompatActivity {
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     progress.setVisibility(View.GONE);
-                    status.setText("Error: " + e.getMessage());
+                    status.setText(friendlyError(e));
                     status.setVisibility(View.VISIBLE);
                 });
             }
         }).start();
+    }
+
+    private String friendlyError(Exception e) {
+        String m = e.getMessage() == null ? "" : e.getMessage();
+        if (m.contains("UnknownHost") || m.contains("ConnectException")
+                || m.contains("SocketTimeout") || m.contains("timed out")
+                || m.contains("ENETUNREACH") || m.contains("Connection refused")) {
+            return "Can't reach Nellis — check your internet connection and try again.";
+        }
+        return "Something went wrong: " + m;
     }
 }

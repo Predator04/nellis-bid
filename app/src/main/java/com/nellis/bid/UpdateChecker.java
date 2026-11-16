@@ -5,6 +5,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.view.Gravity;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
@@ -19,8 +23,13 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Locale;
 
-/** GitHub Releases self-updater (unauthenticated API, 12h cooldown, skip-version). */
+/**
+ * GitHub Releases update checker — NOT auto-installing.
+ * Checks for a new version and NOTIFIES; only when the user taps Download does it
+ * download (with a live progress bar + speed) and then open the installer.
+ */
 public class UpdateChecker {
     private static final String REPO = "Predator04/nellis-bid";
     private static final String PREFS = "updater";
@@ -55,11 +64,12 @@ public class UpdateChecker {
                 int latestCode;
                 try { latestCode = Integer.parseInt(tag); } catch (Exception e) { latestCode = 0; }
                 int myCode = BuildConfig.VERSION_CODE;
+
                 if (latestCode <= myCode) {
                     if (manual) toast(ctx, "You're up to date (v" + myCode + ")");
                     return;
                 }
-                if (sp.getInt("skipped", 0) == latestCode) return;
+                if (sp.getInt("skipped", 0) == latestCode && !manual) return;
 
                 String apkUrl = null;
                 JSONArray assets = rel.optJSONArray("assets");
@@ -79,55 +89,123 @@ public class UpdateChecker {
 
                 final String finalUrl = apkUrl;
                 final int finalCode = latestCode;
-                ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                        .edit().putString("pending_url", finalUrl).apply();
-
-                runOnUi(ctx, () -> {
-                    new AlertDialog.Builder(ctx)
-                            .setTitle("Update available")
-                            .setMessage("Version v" + finalCode + " is available. Update now?")
-                            .setPositiveButton("Update", (d, w) -> downloadAndInstall(ctx, finalUrl))
-                            .setNegativeButton("Later", null)
-                            .setNeutralButton("Skip", (d, w) ->
-                                    ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                                            .edit().putInt("skipped", finalCode).apply())
-                            .show();
-                });
+                runOnUi(ctx, () -> new AlertDialog.Builder(ctx)
+                        .setTitle("New update available")
+                        .setMessage("Version v" + finalCode + " is available (you're on v" + myCode + "). Download it now?")
+                        .setPositiveButton("Download", (d, w) -> download(ctx, finalUrl))
+                        .setNegativeButton("Later", null)
+                        .setNeutralButton("Skip this version", (d, w) ->
+                                ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                                        .edit().putInt("skipped", finalCode).apply())
+                        .show());
             } catch (Exception e) {
-                if (manual) toast(ctx, "Update failed: " + e.getMessage());
+                if (manual) toast(ctx, "Update check failed: " + e.getMessage());
             }
         }).start();
     }
 
-    private static void downloadAndInstall(Context ctx, String apkUrl) {
+    /** Download the APK with a live progress bar + speed readout, then open the installer. */
+    private static void download(Context ctx, String apkUrl) {
+        ProgressBar bar = new ProgressBar(ctx, null, android.R.attr.progressBarStyleHorizontal);
+        bar.setMax(100);
+        TextView txt = new TextView(ctx);
+        txt.setGravity(Gravity.CENTER);
+        txt.setText("0% · starting…");
+        int pad = (int) (24 * ctx.getResources().getDisplayMetrics().density);
+        LinearLayout layout = new LinearLayout(ctx);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(pad, pad, pad, pad);
+        layout.addView(bar, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        tp.topMargin = pad / 2;
+        layout.addView(txt, tp);
+
+        AlertDialog dialog = new AlertDialog.Builder(ctx)
+                .setTitle("Downloading update")
+                .setView(layout)
+                .setCancelable(false)
+                .create();
+        dialog.show();
+
         new Thread(() -> {
             try {
-                toast(ctx, "Downloading update…");
                 File dir = new File(ctx.getCacheDir(), "updates");
                 dir.mkdirs();
                 File apk = new File(dir, "update.apk");
-                HttpURLConnection d = (HttpURLConnection) new URL(apkUrl).openConnection();
-                d.setRequestProperty("User-Agent", "NellisBid");
-                d.setConnectTimeout(30000);
-                d.setReadTimeout(60000);
-                InputStream in = d.getInputStream();
+
+                HttpURLConnection c = (HttpURLConnection) new URL(apkUrl).openConnection();
+                c.setRequestProperty("User-Agent", "NellisBid");
+                c.setConnectTimeout(30000);
+                c.setReadTimeout(120000);
+                c.connect();
+                long total = c.getContentLengthLong();
+                InputStream in = c.getInputStream();
                 FileOutputStream out = new FileOutputStream(apk);
-                byte[] buf = new byte[8192];
+
+                long downloaded = 0;
+                long start = System.currentTimeMillis();
+                long lastUpdate = 0;
+                byte[] buf = new byte[16384];
                 int n;
-                while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+                while ((n = in.read(buf)) != -1) {
+                    out.write(buf, 0, n);
+                    downloaded += n;
+                    long now = System.currentTimeMillis();
+                    if (now - lastUpdate >= 300) {
+                        lastUpdate = now;
+                        double secs = Math.max(0.001, (now - start) / 1000.0);
+                        double speed = downloaded / secs; // bytes/sec
+                        int pct = total > 0 ? (int) (downloaded * 100 / total) : 0;
+                        final int fp = pct;
+                        final String status = pct + "% · " + fmtSpeed(speed)
+                                + " · " + fmtSize(downloaded) + (total > 0 ? " / " + fmtSize(total) : "");
+                        runOnUi(ctx, () -> {
+                            bar.setProgress(fp);
+                            txt.setText(status);
+                        });
+                    }
+                }
                 out.close();
                 in.close();
-                d.disconnect();
+                c.disconnect();
 
-                Uri uri = FileProvider.getUriForFile(ctx, ctx.getPackageName() + ".fileprovider", apk);
-                Intent i = new Intent(Intent.ACTION_VIEW);
-                i.setDataAndType(uri, "application/vnd.android.package-archive");
-                i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
-                ctx.startActivity(i);
+                runOnUi(ctx, () -> {
+                    try { dialog.dismiss(); } catch (Exception ignored) {}
+                    install(ctx, apk);
+                });
             } catch (Exception e) {
-                toast(ctx, "Update failed: " + e.getMessage());
+                runOnUi(ctx, () -> {
+                    try { dialog.dismiss(); } catch (Exception ignored) {}
+                    toast(ctx, "Download failed: " + e.getMessage());
+                });
             }
         }).start();
+    }
+
+    private static void install(Context ctx, File apk) {
+        try {
+            Uri uri = FileProvider.getUriForFile(ctx, ctx.getPackageName() + ".fileprovider", apk);
+            Intent i = new Intent(Intent.ACTION_VIEW);
+            i.setDataAndType(uri, "application/vnd.android.package-archive");
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(i);
+        } catch (Exception e) {
+            toast(ctx, "Install failed: " + e.getMessage());
+        }
+    }
+
+    private static String fmtSpeed(double bytesPerSec) {
+        if (bytesPerSec >= 1024 * 1024) return String.format(Locale.US, "%.1f MB/s", bytesPerSec / (1024 * 1024));
+        if (bytesPerSec >= 1024) return String.format(Locale.US, "%.0f KB/s", bytesPerSec / 1024);
+        return String.format(Locale.US, "%.0f B/s", bytesPerSec);
+    }
+
+    private static String fmtSize(long bytes) {
+        if (bytes >= 1024 * 1024) return String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024.0));
+        if (bytes >= 1024) return String.format(Locale.US, "%.0f KB", bytes / 1024.0);
+        return bytes + " B";
     }
 
     private static void toast(Context ctx, String msg) {
