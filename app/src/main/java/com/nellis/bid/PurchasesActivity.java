@@ -95,8 +95,10 @@ public class PurchasesActivity extends AppCompatActivity {
                 String name = firstNonEmpty(it, "title", "name", "itemTitle", "productTitle", "description", "id");
                 if (name.isEmpty()) continue;
                 String status = firstNonEmpty(it, "status", "state", "marketStatus");
-                String price = it.has("amount") || it.has("price") || it.has("currentPrice")
-                        ? " · $" + it.opt("amount", it.opt("price", it.opt("currentPrice"))) : "";
+                Object p = it.opt("amount");
+                if (p == null) p = it.opt("price");
+                if (p == null) p = it.opt("currentPrice");
+                String price = p != null ? " · $" + p : "";
                 sb.append("• ").append(name).append(price);
                 if (!status.isEmpty()) sb.append(" (").append(status).append(")");
                 sb.append("\n");
