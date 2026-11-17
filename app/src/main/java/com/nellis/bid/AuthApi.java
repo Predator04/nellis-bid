@@ -16,7 +16,7 @@ import java.util.Iterator;
 /** Auth + bidding against the Nellis mobile API (mobile.nellisauction.com). */
 public class AuthApi {
     private static final String BASE = "https://mobile.nellisauction.com";
-    private static final String UA = "Mozilla/5.0 (Linux; Android 14) NellisAuction/2.1.0";
+    private static final String UA = "Android/127";
     private static final String PREFS = "auth";
 
     /** Token storage — plain SharedPreferences so the login reliably survives app updates. */
@@ -143,11 +143,9 @@ public class AuthApi {
         c.setRequestMethod("POST");
         c.setRequestProperty("Content-Type", "application/json");
         c.setRequestProperty("User-Agent", UA);
-        if (token != null) {
-            c.setRequestProperty("Authorization", "Bearer " + token);
-            String sl = ctx != null ? getShoppingLocationToken(ctx) : "";
-            if (!sl.isEmpty()) c.setRequestProperty("x-shopping-location", sl);
-        }
+        String sl = ctx != null ? getShoppingLocationToken(ctx) : "";
+        if (!sl.isEmpty()) c.setRequestProperty("x-shopping-location", sl);
+        if (token != null) c.setRequestProperty("Authorization", "Bearer " + token);
         String cookie = ctx != null ? prefs(ctx).getString("cookie", "") : "";
         if (token != null && !cookie.isEmpty()) c.setRequestProperty("Cookie", cookie);
         c.setConnectTimeout(20000);

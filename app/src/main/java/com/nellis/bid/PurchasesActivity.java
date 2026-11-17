@@ -67,7 +67,7 @@ public class PurchasesActivity extends AppCompatActivity {
             HttpURLConnection c = (HttpURLConnection) new URL(
                     "https://mobile.nellisauction.com" + endpoint).openConnection();
             c.setRequestMethod("GET");
-            c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) NellisAuction/2.1.0");
+            c.setRequestProperty("User-Agent", "Android/127");
             c.setRequestProperty("Authorization", "Bearer " + token);
             String cookie = AuthApi.getCookie(this);
             if (!cookie.isEmpty()) c.setRequestProperty("Cookie", cookie);
